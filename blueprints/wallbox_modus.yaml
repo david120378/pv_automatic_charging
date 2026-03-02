@@ -1,7 +1,8 @@
 # ============================================================
 # Blueprint: Wallbox – Lademodus-Steuerung
-# Version:   0.2.0
+# Version:   0.2.1
 # Changelog:
+#   0.2.1 – Manuell-Modus setzt Ladestrom auf konfigurierbaren Wert (Standard: 16A)
 #   0.2.0 – Optionaler Benachrichtigungs-Dienst beim Moduswechsel
 #   0.1.0 – Initiale Version (Off / Manuell)
 # ============================================================
@@ -11,7 +12,7 @@ blueprint:
     Steuert die Wallbox basierend auf dem ausgewählten Lademodus.
 
     - **Off**: Stoppt das Laden sofort.
-    - **Manuell**: Startet das Laden mit dem aktuell eingestellten Ladestrom.
+    - **Manuell**: Setzt den Ladestrom auf den konfigurierten Wert und startet das Laden.
 
     Optional wird beim Moduswechsel eine Benachrichtigung gesendet.
 
@@ -43,6 +44,28 @@ blueprint:
         entity:
           domain: switch
 
+    wallbox_charge_amps:
+      name: Wallbox Ladestrom (Zahl-Entity)
+      description: >
+        Die Number-Entity für den Ladestrom in Ampere.
+        (z.B. number.SERIAL_charge_amps aus dem evseMQTT Add-on)
+      selector:
+        entity:
+          domain: number
+
+    manual_charge_amps:
+      name: Ladestrom im Manuell-Modus (A)
+      description: >
+        Ladestrom der beim Wechsel auf "Manuell" gesetzt wird.
+        Standard: 16A
+      default: 16
+      selector:
+        number:
+          min: 6
+          max: 32
+          step: 1
+          unit_of_measurement: A
+
     notify_service:
       name: Benachrichtigungs-Dienst (optional)
       description: >
@@ -55,6 +78,7 @@ blueprint:
 
 variables:
   notify_svc: !input notify_service
+  manual_amps_v: !input manual_charge_amps
 
 trigger:
   - platform: state
@@ -89,6 +113,11 @@ action:
           - condition: trigger
             id: mode_manuell
         sequence:
+          - service: number.set_value
+            target:
+              entity_id: !input wallbox_charge_amps
+            data:
+              value: "{{ manual_amps_v }}"
           - service: switch.turn_on
             target:
               entity_id: !input wallbox_switch
@@ -99,6 +128,6 @@ action:
               - service: "{{ notify_svc }}"
                 data:
                   title: "🔌 Wallbox: Modus geändert"
-                  message: "Lademodus auf 'Manuell' gestellt. Laden gestartet."
+                  message: "Lademodus auf 'Manuell' gestellt. Laden mit {{ manual_amps_v }}A gestartet."
 
 mode: single

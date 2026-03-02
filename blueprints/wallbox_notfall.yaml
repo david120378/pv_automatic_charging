@@ -1,7 +1,10 @@
 # ============================================================
 # Blueprint: Wallbox – Notfall-Laden
-# Version:   0.2.0
+# Version:   0.2.1
 # Changelog:
+#   0.2.1 – Bugfix: time_pattern Fallback-Trigger + SOC-Zustandsprüfung
+#            (numeric_state triggert nur bei Übergang; war bei bereits
+#            unterschrittenem Auto-SOC nach HA-Neustart taub)
 #   0.2.0 – Initiale Version (SOC-Schwellwert, Hysterese, Benachrichtigung)
 # ============================================================
 blueprint:
@@ -118,6 +121,7 @@ blueprint:
 variables:
   notify_svc: !input notify_service
   plug_entity: !input plug_state_sensor
+  car_soc_entity: !input car_soc_sensor
   notfall_threshold_v: !input notfall_threshold
   recovery_threshold_v: !input recovery_threshold
   notfall_amps_v: !input notfall_amps
@@ -133,6 +137,12 @@ trigger:
     entity_id: !input car_soc_sensor
     above: !input recovery_threshold
     id: soc_recovered
+
+  # Fallback: Prüft alle 5 Min. ob SOC unter Notfall-Schwellwert oder erholt.
+  # Greift wenn der Übergang bereits stattfand bevor die Automation aktiviert wurde.
+  - platform: time_pattern
+    minutes: "/5"
+    id: time_fallback
 
 condition:
   - condition: template
@@ -185,5 +195,38 @@ action:
                   message: >
                     Auto-SOC hat {{ recovery_threshold_v }}% erreicht.
                     Notfall-Laden gestoppt.
+
+      # Fallback: Stellt sicher dass Notfall-Laden aktiv ist wenn SOC bereits
+      # unter Schwellwert lag beim Aktivieren der Automation.
+      # Kein Notify um Spam bei jedem 5-Min-Check zu vermeiden.
+      - conditions:
+          - condition: trigger
+            id: time_fallback
+          - condition: template
+            value_template: >
+              {{ states(car_soc_entity) | float(100) < notfall_threshold_v }}
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: !input wallbox_charge_amps
+            data:
+              value: "{{ notfall_amps_v }}"
+
+          - service: switch.turn_on
+            target:
+              entity_id: !input wallbox_switch
+
+      # Fallback: Stellt sicher dass Laden gestoppt ist wenn SOC bereits
+      # erholt war beim Aktivieren der Automation.
+      - conditions:
+          - condition: trigger
+            id: time_fallback
+          - condition: template
+            value_template: >
+              {{ states(car_soc_entity) | float(0) >= recovery_threshold_v }}
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input wallbox_switch
 
 mode: single

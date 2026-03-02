@@ -1,7 +1,10 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Stoppen
-# Version:   0.2.0
+# Version:   0.2.1
 # Changelog:
+#   0.2.1 – Bugfix: time_pattern Fallback-Trigger + Stopbedingung-Check
+#            (template/numeric_state triggert nur bei Übergang; war bei bereits
+#            unterschrittenem SOC taub)
 #   0.2.0 – Auto-Ziel-SOC (pro Auto konfigurierbar), Benachrichtigung mit Grund
 #   0.1.0 – Initiale Version (Einspeisung-Hysterese, PV-Batterie SOC)
 # ============================================================
@@ -132,6 +135,8 @@ variables:
   soc_threshold_entity: !input soc_threshold_helper
   car_soc_entity: !input car_soc_sensor
   car_soc_max_v: !input car_soc_max
+  feedin_entity: !input feedin_sensor
+  stop_threshold_w: !input stop_threshold_watts
   notify_svc: !input notify_service
 
 trigger:
@@ -156,6 +161,11 @@ trigger:
     for: "00:01:00"
     id: car_full
 
+  # Fallback: Prüft alle 5 Min. ob eine Stopbedingung erfüllt ist.
+  # Greift wenn der Übergang bereits stattfand bevor die Automation aktiviert wurde.
+  - platform: time_pattern
+    minutes: "/5"
+
 condition:
   - condition: state
     entity_id: !input mode_selector
@@ -164,6 +174,13 @@ condition:
   - condition: state
     entity_id: !input wallbox_switch
     state: "on"
+
+  - condition: template
+    alias: "Mindestens eine Stopbedingung aktuell erfüllt"
+    value_template: >
+      {{ (states(soc_entity) | float(0) < states(soc_threshold_entity) | float(0))
+         or (states(feedin_entity) | float(0) < stop_threshold_w)
+         or (car_soc_entity != '' and states(car_soc_entity) | float(100) >= car_soc_max_v) }}
 
 action:
   - service: switch.turn_off

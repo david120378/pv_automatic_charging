@@ -1,8 +1,8 @@
 # ============================================================
 # Blueprint: Wallbox – Wetter-Vorschau & Nachtladung
-# Version:   1.0.0
+# Version:   0.2.0
 # Changelog:
-#   1.0.0 – Initiale Version (Wettercheck, Nachtladung, Auto-SOC, Benachrichtigung)
+#   0.2.0 – Initiale Version (Wettercheck, Nachtladung, Auto-SOC, Benachrichtigung)
 # ============================================================
 blueprint:
   name: "Wallbox: Wetter-Vorschau – Nachtladung"

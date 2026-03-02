@@ -1,0 +1,149 @@
+blueprint:
+  name: "Wallbox: Überschussladen – Starten"
+  description: >
+    Startet das Laden automatisch wenn genug Solar-Überschuss vorhanden ist
+    UND der PV-Batterie-SOC über dem eingestellten Schwellwert liegt.
+
+    **Einschalt-Hysterese:** Der Überschuss muss für eine konfigurierbare Zeit
+    (Standard: 3 Minuten) konstant vorhanden sein, bevor das Laden beginnt.
+    So werden kurze Wolkenlücken ignoriert.
+
+    **Berechnung Startschwelle (3-phasig):** 6A × 3 × 230V = 4140 W
+
+    Wird zusammen mit den Blueprints "Modus-Steuerung", "Ampere anpassen"
+    und "Stoppen" verwendet.
+  domain: automation
+  author: david120378
+  homeassistant:
+    min_version: "2023.4.0"
+  input:
+    mode_selector:
+      name: Lademodus-Auswahl
+      description: Derselbe Dropdown-Helfer wie im Blueprint "Modus-Steuerung".
+      selector:
+        entity:
+          domain: input_select
+
+    wallbox_switch:
+      name: Wallbox Lade-Schalter
+      description: Der Switch zum Ein-/Ausschalten des Ladevorgangs.
+      selector:
+        entity:
+          domain: switch
+
+    wallbox_charge_amps:
+      name: Wallbox Ladestrom (Zahl-Entity)
+      description: >
+        Die Number-Entity für den Ladestrom in Ampere.
+        (z.B. number.SERIAL_charge_amps aus dem evseMQTT Add-on)
+      selector:
+        entity:
+          domain: number
+
+    feedin_sensor:
+      name: Solar-Einspeisung Sensor
+      description: >
+        Sensor der die aktuelle Einspeisung ins Netz in Watt anzeigt.
+        (z.B. aus der FOX-ESS Integration)
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+
+    soc_sensor:
+      name: PV-Batterie SOC Sensor
+      description: >
+        Sensor für den Ladezustand der PV-Batterie in Prozent.
+        (z.B. aus der FOX-ESS Integration)
+      selector:
+        entity:
+          domain: sensor
+          device_class: battery
+
+    soc_threshold_helper:
+      name: SOC-Schwellwert Helfer
+      description: >
+        Der Zahl-Helfer für den SOC-Schwellwert.
+        (Einstellungen → Helfer → Zahl, Min 0, Max 100, Schritt 5, Einheit %)
+      selector:
+        entity:
+          domain: input_number
+
+    phases:
+      name: Anzahl Ladephasen
+      description: Anzahl der Phasen der Wallbox.
+      default: "3"
+      selector:
+        select:
+          options:
+            - label: "3-phasig (3 × 230V, Divisor 690)"
+              value: "3"
+            - label: "1-phasig (1 × 230V, Divisor 230)"
+              value: "1"
+
+    start_threshold_watts:
+      name: Startschwelle (Watt)
+      description: >
+        Mindest-Einspeisung in Watt um das Laden zu starten.
+        3-phasig: 6A × 3 × 230V = 4140 W
+        1-phasig: 6A × 1 × 230V = 1380 W
+      default: 4140
+      selector:
+        number:
+          min: 500
+          max: 22000
+          step: 100
+          unit_of_measurement: W
+
+    start_delay:
+      name: Einschalt-Verzögerung
+      description: >
+        Wie lange der Überschuss stabil sein muss bevor das Laden startet.
+        Standard: 3 Minuten (schützt vor Wolkenlücken).
+      default: "00:03:00"
+      selector:
+        duration: {}
+
+variables:
+  phases_count: !input phases
+  feedin_entity: !input feedin_sensor
+  soc_entity: !input soc_sensor
+  soc_threshold_entity: !input soc_threshold_helper
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input feedin_sensor
+    above: !input start_threshold_watts
+    for: !input start_delay
+
+condition:
+  - condition: state
+    entity_id: !input mode_selector
+    state: "Überschussladen"
+
+  - condition: template
+    alias: "PV-Batterie SOC über Schwellwert"
+    value_template: >
+      {{ states(soc_entity) | float(0) >= states(soc_threshold_entity) | float(0) }}
+
+  - condition: state
+    entity_id: !input wallbox_switch
+    state: "off"
+
+action:
+  - variables:
+      feedin_w: "{{ states(feedin_entity) | float(0) }}"
+      divisor: "{{ phases_count | int * 230 }}"
+      target_amps: "{{ [[feedin_w / divisor, 6] | max, 32] | min | int }}"
+
+  - service: number.set_value
+    target:
+      entity_id: !input wallbox_charge_amps
+    data:
+      value: "{{ target_amps }}"
+
+  - service: switch.turn_on
+    target:
+      entity_id: !input wallbox_switch
+
+mode: single

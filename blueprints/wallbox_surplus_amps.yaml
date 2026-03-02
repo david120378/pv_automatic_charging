@@ -1,0 +1,106 @@
+blueprint:
+  name: "Wallbox: Überschussladen – Ampere anpassen"
+  description: >
+    Passt den Ladestrom laufend an den verfügbaren Solar-Überschuss an,
+    solange der Modus "Überschussladen" aktiv ist und geladen wird.
+
+    **Berechnung:** (Aktuelle Einspeisung + aktuelle Ladeleistung) / (Phasen × 230V)
+
+    Die aktuelle Ladeleistung wird addiert, weil sie nicht als "Einspeisung" sichtbar
+    ist – sie ist bereits in der Berechnung des tatsächlichen Gesamtüberschusses enthalten.
+
+    **Mindestladestrom:** 6A (Wallbox-Minimum). **Maximum:** 32A.
+
+    Wird zusammen mit den Blueprints "Modus-Steuerung", "Starten" und "Stoppen" verwendet.
+  domain: automation
+  author: david120378
+  homeassistant:
+    min_version: "2023.4.0"
+  input:
+    mode_selector:
+      name: Lademodus-Auswahl
+      description: Derselbe Dropdown-Helfer wie im Blueprint "Modus-Steuerung".
+      selector:
+        entity:
+          domain: input_select
+
+    wallbox_switch:
+      name: Wallbox Lade-Schalter
+      description: Der Switch zum Ein-/Ausschalten des Ladevorgangs.
+      selector:
+        entity:
+          domain: switch
+
+    wallbox_charge_amps:
+      name: Wallbox Ladestrom (Zahl-Entity)
+      description: >
+        Die Number-Entity für den Ladestrom in Ampere.
+        (z.B. number.SERIAL_charge_amps aus dem evseMQTT Add-on)
+      selector:
+        entity:
+          domain: number
+
+    feedin_sensor:
+      name: Solar-Einspeisung Sensor
+      description: >
+        Sensor der die aktuelle Einspeisung ins Netz in Watt anzeigt.
+        (z.B. aus der FOX-ESS Integration)
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+
+    current_energy_sensor:
+      name: Wallbox Aktuelle Ladeleistung
+      description: >
+        Sensor der die aktuelle Ladeleistung der Wallbox in Watt anzeigt.
+        (z.B. sensor.SERIAL_current_energy aus dem evseMQTT Add-on)
+      selector:
+        entity:
+          domain: sensor
+
+    phases:
+      name: Anzahl Ladephasen
+      description: Anzahl der Phasen der Wallbox.
+      default: "3"
+      selector:
+        select:
+          options:
+            - label: "3-phasig (3 × 230V, Divisor 690)"
+              value: "3"
+            - label: "1-phasig (1 × 230V, Divisor 230)"
+              value: "1"
+
+variables:
+  phases_count: !input phases
+  feedin_entity: !input feedin_sensor
+  energy_entity: !input current_energy_sensor
+
+trigger:
+  - platform: state
+    entity_id: !input feedin_sensor
+
+condition:
+  - condition: state
+    entity_id: !input mode_selector
+    state: "Überschussladen"
+
+  - condition: state
+    entity_id: !input wallbox_switch
+    state: "on"
+
+action:
+  - variables:
+      feedin_w: "{{ states(feedin_entity) | float(0) }}"
+      current_charge_w: "{{ states(energy_entity) | float(0) }}"
+      available_w: "{{ feedin_w + current_charge_w }}"
+      divisor: "{{ phases_count | int * 230 }}"
+      target_amps: "{{ [[available_w / divisor, 6] | max, 32] | min | int }}"
+
+  - service: number.set_value
+    target:
+      entity_id: !input wallbox_charge_amps
+    data:
+      value: "{{ target_amps }}"
+
+mode: single

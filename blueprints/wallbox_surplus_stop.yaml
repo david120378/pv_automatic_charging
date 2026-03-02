@@ -1,0 +1,133 @@
+blueprint:
+  name: "Wallbox: Überschussladen – Stoppen"
+  description: >
+    Stoppt das Laden wenn zu wenig Solar-Überschuss vorhanden ist
+    ODER der PV-Batterie-SOC unter den Schwellwert fällt.
+
+    **Ausschalt-Hysterese (Einspeisung):** Das Laden stoppt erst wenn die Einspeisung
+    für eine konfigurierbare Zeit (Standard: 5 Minuten) unter der Stoppschwelle bleibt.
+    Kurze Wolkenphasen (< 5 Min.) unterbrechen das Laden nicht.
+
+    **Hysterese-Band (3-phasig, Beispiel):**
+    - Starten bei ≥ 4140 W (Blueprint "Starten")
+    - Stoppen bei < 1380 W (2A × 3 × 230V) für 5 Minuten
+
+    **SOC-Stopp:** Reagiert sofort (1 Minute Verzögerung) wenn der Batteriestand
+    unter den Schwellwert fällt.
+
+    Wird zusammen mit den Blueprints "Modus-Steuerung", "Starten" und
+    "Ampere anpassen" verwendet.
+  domain: automation
+  author: david120378
+  homeassistant:
+    min_version: "2023.4.0"
+  input:
+    mode_selector:
+      name: Lademodus-Auswahl
+      description: Derselbe Dropdown-Helfer wie im Blueprint "Modus-Steuerung".
+      selector:
+        entity:
+          domain: input_select
+
+    wallbox_switch:
+      name: Wallbox Lade-Schalter
+      description: Der Switch zum Ein-/Ausschalten des Ladevorgangs.
+      selector:
+        entity:
+          domain: switch
+
+    feedin_sensor:
+      name: Solar-Einspeisung Sensor
+      description: >
+        Sensor der die aktuelle Einspeisung ins Netz in Watt anzeigt.
+        (z.B. aus der FOX-ESS Integration)
+      selector:
+        entity:
+          domain: sensor
+          device_class: power
+
+    soc_sensor:
+      name: PV-Batterie SOC Sensor
+      description: >
+        Sensor für den Ladezustand der PV-Batterie in Prozent.
+        (z.B. aus der FOX-ESS Integration)
+      selector:
+        entity:
+          domain: sensor
+          device_class: battery
+
+    soc_threshold_helper:
+      name: SOC-Schwellwert Helfer
+      description: >
+        Der Zahl-Helfer für den SOC-Schwellwert.
+        (Derselbe wie im Blueprint "Starten")
+      selector:
+        entity:
+          domain: input_number
+
+    stop_threshold_watts:
+      name: Stoppschwelle (Watt)
+      description: >
+        Unter diesem Einspeisewert wird das Laden gestoppt (nach Ablauf der Verzögerung).
+        Sollte deutlich unter der Startschwelle liegen (Hysterese-Band).
+        3-phasig: 2A × 3 × 230V = 1380 W
+        1-phasig: 2A × 1 × 230V = 460 W
+      default: 1380
+      selector:
+        number:
+          min: 0
+          max: 10000
+          step: 100
+          unit_of_measurement: W
+
+    stop_delay:
+      name: Ausschalt-Verzögerung (Einspeisung)
+      description: >
+        Wie lange die Einspeisung unter der Stoppschwelle sein muss bevor das Laden stoppt.
+        Standard: 5 Minuten (schützt vor kurzen Wolken).
+      default: "00:05:00"
+      selector:
+        duration: {}
+
+    soc_stop_delay:
+      name: Ausschalt-Verzögerung (SOC)
+      description: >
+        Wie lange der SOC unter dem Schwellwert sein muss bevor das Laden stoppt.
+        Standard: 1 Minute.
+      default: "00:01:00"
+      selector:
+        duration: {}
+
+variables:
+  soc_entity: !input soc_sensor
+  soc_threshold_entity: !input soc_threshold_helper
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input feedin_sensor
+    below: !input stop_threshold_watts
+    for: !input stop_delay
+    id: feedin_low
+
+  - platform: template
+    alias: "SOC unter Schwellwert"
+    value_template: >
+      {{ states(soc_entity) | float(0) < states(soc_threshold_entity) | float(0) }}
+    for: !input soc_stop_delay
+    id: soc_low
+
+condition:
+  - condition: state
+    entity_id: !input mode_selector
+    state: "Überschussladen"
+
+  - condition: state
+    entity_id: !input wallbox_switch
+    state: "on"
+
+action:
+  - service: switch.turn_off
+    target:
+      entity_id: !input wallbox_switch
+
+mode: single

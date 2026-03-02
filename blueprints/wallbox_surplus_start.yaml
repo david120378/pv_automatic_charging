@@ -1,3 +1,10 @@
+# ============================================================
+# Blueprint: Wallbox – Überschussladen – Starten
+# Version:   2.0.0
+# Changelog:
+#   2.0.0 – Einspeisung-Puffer, Zeitfenster (Start/End), Benachrichtigung
+#   1.0.0 – Initiale Version (Hysterese, SOC-Schwellwert)
+# ============================================================
 blueprint:
   name: "Wallbox: Überschussladen – Starten"
   description: >

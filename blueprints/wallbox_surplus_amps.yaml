@@ -1,3 +1,11 @@
+# ============================================================
+# Blueprint: Wallbox – Überschussladen – Ampere anpassen
+# Version:   2.0.0
+# Changelog:
+#   2.0.0 – Einspeisung-Puffer, Netzbezug-Sensor, Großverbraucher-Sensor,
+#            Benachrichtigung (nur bei ≥2A Änderung)
+#   1.0.0 – Initiale Version (Einspeisung + Ladeleistung)
+# ============================================================
 blueprint:
   name: "Wallbox: Überschussladen – Ampere anpassen"
   description: >

@@ -1,3 +1,9 @@
+# ============================================================
+# Blueprint: Wallbox – Notfall-Laden
+# Version:   1.0.0
+# Changelog:
+#   1.0.0 – Initiale Version (SOC-Schwellwert, Hysterese, Benachrichtigung)
+# ============================================================
 blueprint:
   name: "Wallbox: Notfall-Laden"
   description: >

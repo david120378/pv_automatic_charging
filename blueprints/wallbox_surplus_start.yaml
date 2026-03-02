@@ -1,7 +1,9 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Starten
-# Version:   0.2.0
+# Version:   0.2.1
 # Changelog:
+#   0.2.1 – Bugfix: time_pattern Fallback-Trigger + Einspeisung-Bedingung
+#            (numeric_state triggert nur bei Übergang; war bei aktivem Überschuss taub)
 #   0.2.0 – Einspeisung-Puffer, Zeitfenster (Start/End), Benachrichtigung
 #   0.1.0 – Initiale Version (Hysterese, SOC-Schwellwert)
 # ============================================================
@@ -175,6 +177,7 @@ variables:
   soc_entity: !input soc_sensor
   soc_threshold_entity: !input soc_threshold_helper
   puffer_w: !input puffer_watt
+  start_threshold_w: !input start_threshold_watts
   zeitfenster: !input zeitfenster_aktiv
   start_time_v: !input start_time
   end_time_v: !input end_time
@@ -186,10 +189,20 @@ trigger:
     above: !input start_threshold_watts
     for: !input start_delay
 
+  # Fallback: Prüft alle 5 Min. ob Überschuss vorhanden ist.
+  # Greift wenn der Übergang bereits stattfand bevor die Automation aktiviert wurde.
+  - platform: time_pattern
+    minutes: "/5"
+
 condition:
   - condition: state
     entity_id: !input mode_selector
     state: "Überschussladen"
+
+  - condition: template
+    alias: "Einspeisung aktuell über Startschwelle"
+    value_template: >
+      {{ states(feedin_entity) | float(0) >= (start_threshold_w + puffer_w) }}
 
   - condition: template
     alias: "PV-Batterie SOC über Schwellwert"

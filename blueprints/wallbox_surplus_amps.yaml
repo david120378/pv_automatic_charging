@@ -1,7 +1,9 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Ampere anpassen
-# Version:   0.2.0
+# Version:   0.2.1
 # Changelog:
+#   0.2.1 – Bugfix: wallbox_charge_amps_entity in Top-Level variables verschoben
+#            (war in Action-Block nach Verwendung definiert → Template-Fehler)
 #   0.2.0 – Einspeisung-Puffer, Netzbezug-Sensor, Großverbraucher-Sensor,
 #            Benachrichtigung (nur bei ≥2A Änderung)
 #   0.1.0 – Initiale Version (Einspeisung + Ladeleistung)
@@ -124,6 +126,7 @@ variables:
   phases_count: !input phases
   feedin_entity: !input feedin_sensor
   energy_entity: !input current_energy_sensor
+  wallbox_charge_amps_entity: !input wallbox_charge_amps
   puffer_w: !input puffer_watt
   grid_entity: !input grid_sensor
   extra_entity: !input extra_load_sensor
@@ -153,9 +156,6 @@ action:
       available_w: "{{ feedin_w + current_charge_w - grid_w - extra_w - puffer_w }}"
       target_amps: "{{ [[available_w / divisor, 6] | max, 32] | min | int }}"
       current_amps: "{{ states(wallbox_charge_amps_entity) | float(0) }}"
-
-  - variables:
-      wallbox_charge_amps_entity: !input wallbox_charge_amps
 
   - service: number.set_value
     target:

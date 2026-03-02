@@ -109,3 +109,33 @@ cards:
       #   name: Auto 3 – Akku
       # - entity: sensor.AUTO3_charging_state
       #   name: Auto 3 – Status
+
+  # ── Solar-Überschuss & Laden – Verlauf (24h) ───────────────
+  # Zeigt Einspeisung und Ladeleistung der letzten 24 Stunden.
+  # FOX_ESS_FEEDIN ersetzen durch den Entity-Namen deines Einspeise-Sensors
+  # (z.B. sensor.fox_ess_feed_in_power)
+  - type: history-graph
+    title: Solar-Überschuss & Laden (24h)
+    hours_to_show: 24
+    entities:
+      - entity: sensor.FOX_ESS_FEEDIN
+        name: Einspeisung
+      - entity: sensor.SERIAL_current_energy
+        name: Ladeleistung
+
+  # ── Energie-Statistik ──────────────────────────────────────
+  # Aktuelle Ladeleistung, Energie der aktuellen Sitzung und Gesamtenergie.
+  - type: entities
+    title: Energie
+    entities:
+      - entity: sensor.SERIAL_current_energy
+        name: Aktuelle Ladeleistung
+        icon: mdi:flash
+
+      - entity: sensor.SERIAL_current_amount
+        name: Energie diese Sitzung
+        icon: mdi:battery-charging-outline
+
+      - entity: sensor.SERIAL_total_energy
+        name: Energie gesamt
+        icon: mdi:counter

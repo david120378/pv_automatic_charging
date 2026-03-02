@@ -6,6 +6,8 @@ blueprint:
     - **Off**: Stoppt das Laden sofort.
     - **Manuell**: Startet das Laden mit dem aktuell eingestellten Ladestrom.
 
+    Optional wird beim Moduswechsel eine Benachrichtigung gesendet.
+
     Benötigt den Helfer "Wallbox Modus" (input_select) mit den Optionen:
     Off, Manuell, Überschussladen.
 
@@ -34,9 +36,18 @@ blueprint:
         entity:
           domain: switch
 
+    notify_service:
+      name: Benachrichtigungs-Dienst (optional)
+      description: >
+        Sendet eine Nachricht beim Moduswechsel.
+        Beispiele: notify.mobile_app_iphone, notify.telegram
+        Leer lassen für keine Benachrichtigung.
+      default: ""
+      selector:
+        text: {}
+
 variables:
-  mode_entity: !input mode_selector
-  switch_entity: !input wallbox_switch
+  notify_svc: !input notify_service
 
 trigger:
   - platform: state
@@ -58,6 +69,14 @@ action:
           - service: switch.turn_off
             target:
               entity_id: !input wallbox_switch
+          - if:
+              - condition: template
+                value_template: "{{ notify_svc != '' }}"
+            then:
+              - service: "{{ notify_svc }}"
+                data:
+                  title: "🔌 Wallbox: Modus geändert"
+                  message: "Lademodus auf 'Off' gestellt. Laden gestoppt."
 
       - conditions:
           - condition: trigger
@@ -66,5 +85,13 @@ action:
           - service: switch.turn_on
             target:
               entity_id: !input wallbox_switch
+          - if:
+              - condition: template
+                value_template: "{{ notify_svc != '' }}"
+            then:
+              - service: "{{ notify_svc }}"
+                data:
+                  title: "🔌 Wallbox: Modus geändert"
+                  message: "Lademodus auf 'Manuell' gestellt. Laden gestartet."
 
 mode: single

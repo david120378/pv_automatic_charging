@@ -1,7 +1,8 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Starten
-# Version:   0.2.1
+# Version:   0.2.2
 # Changelog:
+#   0.2.2 – Versionskorrektur
 #   0.2.1 – Bugfix: time_pattern Fallback-Trigger + Einspeisung-Bedingung
 #            (numeric_state triggert nur bei Übergang; war bei aktivem Überschuss taub)
 #   0.2.0 – Einspeisung-Puffer, Zeitfenster (Start/End), Benachrichtigung

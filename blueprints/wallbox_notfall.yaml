@@ -1,7 +1,8 @@
 # ============================================================
 # Blueprint: Wallbox – Notfall-Laden
-# Version:   0.2.1
+# Version:   0.2.2
 # Changelog:
+#   0.2.2 – Versionskorrektur
 #   0.2.1 – Bugfix: time_pattern Fallback-Trigger + SOC-Zustandsprüfung
 #            (numeric_state triggert nur bei Übergang; war bei bereits
 #            unterschrittenem Auto-SOC nach HA-Neustart taub)

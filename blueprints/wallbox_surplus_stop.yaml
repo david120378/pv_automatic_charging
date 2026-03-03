@@ -1,7 +1,9 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Stoppen
-# Version:   0.2.2
+# Version:   0.2.3
 # Changelog:
+#   0.2.3 – kW-Sensor-Unterstützung: sensor_in_kw Boolean + kw_multiplier
+#            (FOX-ESS liefert kW → Vergleich mit W-Schwelle schlug immer fehl)
 #   0.2.2 – Versionskorrektur
 #   0.2.1 – Bugfix: time_pattern Fallback-Trigger + Stopbedingung-Check
 #            (template/numeric_state triggert nur bei Übergang; war bei bereits
@@ -122,6 +124,15 @@ blueprint:
           step: 5
           unit_of_measurement: "%"
 
+    sensor_in_kw:
+      name: Sensor-Einheit kW
+      description: >
+        Aktivieren wenn der Einspeisung-Sensor in kW misst (z.B. FOX-ESS).
+        Deaktivieren wenn der Sensor in Watt (W) misst.
+      default: true
+      selector:
+        boolean: {}
+
     notify_service:
       name: Benachrichtigungs-Dienst (optional)
       description: >
@@ -139,11 +150,15 @@ variables:
   feedin_entity: !input feedin_sensor
   stop_threshold_w: !input stop_threshold_watts
   notify_svc: !input notify_service
+  sensor_kw: !input sensor_in_kw
+  kw_multiplier: "{{ 1000 if sensor_kw else 1 }}"
 
 trigger:
-  - platform: numeric_state
-    entity_id: !input feedin_sensor
-    below: !input stop_threshold_watts
+  # Template-Trigger: konvertiert kW → W über kw_multiplier und wartet stop_delay
+  - platform: template
+    alias: "Einspeisung unter Stoppschwelle"
+    value_template: >
+      {{ states(feedin_entity) | float(0) * kw_multiplier < stop_threshold_w }}
     for: !input stop_delay
     id: feedin_low
 
@@ -180,7 +195,7 @@ condition:
     alias: "Mindestens eine Stopbedingung aktuell erfüllt"
     value_template: >
       {{ (states(soc_entity) | float(0) < states(soc_threshold_entity) | float(0))
-         or (states(feedin_entity) | float(0) < stop_threshold_w)
+         or (states(feedin_entity) | float(0) * kw_multiplier < stop_threshold_w)
          or (car_soc_entity != '' and states(car_soc_entity) | float(100) >= car_soc_max_v) }}
 
 action:

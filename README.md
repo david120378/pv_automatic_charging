@@ -22,7 +22,6 @@ Entwickelt für:
 - **Notfall-Laden:** Automatisch laden wenn Auto-SOC unter Schwellwert fällt
 - **Wetter-Vorschau:** Bei schlechtem Wetter → Nachtladung automatisch aktivieren
 - **Benachrichtigungen:** Optional für alle Modusänderungen und Ereignisse
-- **Dashboard-Karte** mit Modus-Dropdown, SOC-Schieberegler, Auto-Status, Verlaufsgraph und Energie-Statistik
 
 ---
 
@@ -111,6 +110,8 @@ Ersetze `david120378/pv_automatic_charging` durch dein Repository wenn nötig.
 **Modus-Steuerung:**
 - Lademodus-Auswahl → `input_select.wallbox_modus`
 - Wallbox Lade-Schalter → `switch.SERIAL_charge`
+- Wallbox Ladestrom → `number.SERIAL_charge_amps`
+- Ladestrom im Manuell-Modus → 16 A *(Standard)*
 - Benachrichtigungs-Dienst → optional (z.B. `notify.mobile_app_iphone`)
 
 **Überschussladen – Starten:**
@@ -176,18 +177,6 @@ Ersetze `david120378/pv_automatic_charging` durch dein Repository wenn nötig.
 - Auto SOC Sensor → optional
 - Benachrichtigungs-Dienst → optional
 - ⚠️ **Benötigt Home Assistant 2023.9+** (für `weather.get_forecasts`)
-
----
-
-## Installation: Dashboard-Karte
-
-1. Dashboard öffnen → **Bearbeiten** (Stift-Icon)
-2. **+ Karte hinzufügen → Manuell (YAML-Modus)**
-3. Inhalt von `dashboard/wallbox_card.yaml` einfügen
-4. `SERIAL` durch deine Wallbox-Seriennummer ersetzen
-5. `FOX_ESS_FEEDIN` durch den korrekten Entity-Namen deines Einspeise-Sensors ersetzen
-6. Tesla- und BMW-Entity-IDs anpassen (oder im visuellen Editor per Dropdown wählen)
-7. **Speichern**
 
 ---
 

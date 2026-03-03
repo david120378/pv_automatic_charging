@@ -1,7 +1,11 @@
 # ============================================================
 # Blueprint: Wallbox – Überschussladen – Stoppen
-# Version:   0.2.3
+# Version:   0.2.4
 # Changelog:
+#   0.2.4 – Bugfix: time_pattern stoppte Laden während Wallbox lädt (Einspeisung
+#            fällt beim Laden unter Stoppschwelle → Loop). time_pattern prüft
+#            jetzt nur noch SOC/Auto-Bedingungen; Einspeisung wird nur via
+#            feedin_low Trigger (mit for-Verzögerung) ausgewertet.
 #   0.2.3 – kW-Sensor-Unterstützung: sensor_in_kw Boolean + kw_multiplier
 #            (FOX-ESS liefert kW → Vergleich mit W-Schwelle schlug immer fehl)
 #   0.2.2 – Versionskorrektur
@@ -192,10 +196,10 @@ condition:
     state: "on"
 
   - condition: template
-    alias: "Mindestens eine Stopbedingung aktuell erfüllt"
+    alias: "Mindestens eine Stopbedingung erfüllt"
     value_template: >
-      {{ (states(soc_entity) | float(0) < states(soc_threshold_entity) | float(0))
-         or (states(feedin_entity) | float(0) * kw_multiplier < stop_threshold_w)
+      {{ trigger.id == 'feedin_low'
+         or (states(soc_entity) | float(0) < states(soc_threshold_entity) | float(0))
          or (car_soc_entity != '' and states(car_soc_entity) | float(100) >= car_soc_max_v) }}
 
 action:

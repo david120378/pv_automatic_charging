@@ -1,7 +1,10 @@
 # ============================================================
 # Blueprint: Wallbox – Notfall-Laden
-# Version:   0.2.2
+# Version:   0.2.3
 # Changelog:
+#   0.2.3 – Bugfix: time_fallback Recovery-Branch entfernt (stoppte Überschussladen
+#            alle 5 Min. weil car_soc fast immer >= recovery_threshold). Stop via
+#            soc_recovered Trigger (echter Übergang) ist ausreichend.
 #   0.2.2 – Versionskorrektur
 #   0.2.1 – Bugfix: time_pattern Fallback-Trigger + SOC-Zustandsprüfung
 #            (numeric_state triggert nur bei Übergang; war bei bereits
@@ -200,6 +203,8 @@ action:
       # Fallback: Stellt sicher dass Notfall-Laden aktiv ist wenn SOC bereits
       # unter Schwellwert lag beim Aktivieren der Automation.
       # Kein Notify um Spam bei jedem 5-Min-Check zu vermeiden.
+      # KEIN Recovery-Branch hier: soc_recovered Trigger (echter Übergang) reicht,
+      # und car_soc >= recovery_threshold ist fast immer true → würde Überschussladen stoppen.
       - conditions:
           - condition: trigger
             id: time_fallback
@@ -214,19 +219,6 @@ action:
               value: "{{ notfall_amps_v }}"
 
           - service: switch.turn_on
-            target:
-              entity_id: !input wallbox_switch
-
-      # Fallback: Stellt sicher dass Laden gestoppt ist wenn SOC bereits
-      # erholt war beim Aktivieren der Automation.
-      - conditions:
-          - condition: trigger
-            id: time_fallback
-          - condition: template
-            value_template: >
-              {{ states(car_soc_entity) | float(0) >= recovery_threshold_v }}
-        sequence:
-          - service: switch.turn_off
             target:
               entity_id: !input wallbox_switch
 
